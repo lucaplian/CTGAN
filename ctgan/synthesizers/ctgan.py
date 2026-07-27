@@ -58,7 +58,9 @@ class Discriminator(Module):
 
     def forward(self, input_):
         """Apply the Discriminator to the `input_`."""
+        #print("input_.size()[0]=", input_.size()[0], " self.pac=", self.pac )
         assert input_.size()[0] % self.pac == 0
+        #print("it goes after forward")
         return self.seq(input_.view(-1, self.pacdim))
 
 

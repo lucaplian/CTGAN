@@ -3,6 +3,9 @@
 import numpy as np
 import pandas as pd
 import torch
+import math
+from opacus import PrivacyEngine
+
 from torch.nn import Linear, Module, Parameter, ReLU, Sequential
 from torch.nn.functional import cross_entropy
 from torch.optim import Adam
@@ -13,6 +16,42 @@ from ctgan.data_transformer import DataTransformer
 from ctgan.synthesizers._utils import _format_score, _set_device, validate_and_set_device
 from ctgan.synthesizers.base import BaseSynthesizer, random_state
 
+class EncoderNDecoder(Module):
+    def __init__(self, data_dim, compress_dims, embedding_dim, decompress_dims):
+        super(EncoderNDecoder, self).__init__()
+        dim_encoder = data_dim
+        dim_decoder = embedding_dim
+        seq_encoder = []
+        seq_decoder = []
+        for item in list(compress_dims):
+            
+            seq_encoder += [Linear(dim_encoder, item), ReLU()]
+            dim_encoder = item
+
+        self.seq_encoder = Sequential(*seq_encoder)
+        self.fc1 = Linear(dim_encoder, embedding_dim)
+        self.fc2 = Linear(dim_encoder, embedding_dim)
+
+        dim_decoder = embedding_dim
+        for item in list(decompress_dims):
+            seq_decoder += [Linear(dim_decoder, item), ReLU()]
+            dim_decoder = item
+
+        seq_decoder.append(Linear(dim_decoder, data_dim))
+        self.seq_decoder = Sequential(*seq_decoder)
+        self.sigma = Parameter(torch.ones(data_dim) * 0.1)
+    
+    def forward(self, combined_input):
+        """Encode the passed `input_`."""
+        data_dim = self.seq_encoder[0].in_features
+        input_ = combined_input[:, :data_dim]
+        eps = combined_input[:, data_dim:]
+        feature = self.seq_encoder(input_)
+        mu = self.fc1(feature)
+        logvar = self.fc2(feature)
+        std = torch.exp(0.5 * logvar)
+        emb = eps * std + mu        
+        return mu, std, logvar, self.seq_decoder(emb), self.sigma
 
 class Encoder(Module):
     """Encoder for the TVAE.
@@ -66,7 +105,6 @@ class Decoder(Module):
         for item in list(decompress_dims):
             seq += [Linear(dim, item), ReLU()]
             dim = item
-
         seq.append(Linear(dim, data_dim))
         self.seq = Sequential(*seq)
         self.sigma = Parameter(torch.ones(data_dim) * 0.1)
@@ -118,6 +156,8 @@ class TVAE(BaseSynthesizer):
         enable_gpu=True,
         verbose=False,
         cuda=None,
+        delta = 1e-5,
+        epsilon = math.inf, 
     ):
         self.embedding_dim = embedding_dim
         self.compress_dims = compress_dims
@@ -131,6 +171,8 @@ class TVAE(BaseSynthesizer):
         self.verbose = verbose
         self._device = validate_and_set_device(enable_gpu, cuda)
         self._enable_gpu = cuda if cuda is not None else enable_gpu
+        self.epsilon = epsilon
+        self.delta = delta
 
     @random_state
     def fit(self, train_data, discrete_columns=()):
@@ -152,10 +194,11 @@ class TVAE(BaseSynthesizer):
         loader = DataLoader(dataset, batch_size=self.batch_size, shuffle=True, drop_last=False)
 
         data_dim = self.transformer.output_dimensions
+        encoder_n_decoder = EncoderNDecoder(data_dim, self.compress_dims, self.embedding_dim, self.decompress_dims).to(self._device)
         encoder = Encoder(data_dim, self.compress_dims, self.embedding_dim).to(self._device)
         self.decoder = Decoder(self.embedding_dim, self.decompress_dims, data_dim).to(self._device)
         optimizerAE = Adam(
-            list(encoder.parameters()) + list(self.decoder.parameters()), weight_decay=self.l2scale
+            list(encoder_n_decoder.parameters()), weight_decay=self.l2scale
         )
 
         self.loss_values = pd.DataFrame(columns=['Epoch', 'Batch', 'Loss'])
@@ -164,16 +207,30 @@ class TVAE(BaseSynthesizer):
             iterator_description = 'Loss: {loss}'
             iterator.set_description(iterator_description.format(loss=_format_score(0)))
 
+        #DELTA = 1 / len(loader)
+        
+        privacy_engine = PrivacyEngine()
+        encoder_n_decoder, optimizerAE, loader = privacy_engine.make_private_with_epsilon(
+            module=encoder_n_decoder,
+            optimizer=optimizerAE,
+            data_loader=loader,
+            target_delta=self.delta,
+            target_epsilon=self.epsilon,
+            epochs=self.epochs,
+            max_grad_norm=1.0,
+        )
+
+
         for i in iterator:
             loss_values = []
             batch = []
             for id_, data in enumerate(loader):
                 optimizerAE.zero_grad()
+               
                 real = data[0].to(self._device)
-                mu, std, logvar = encoder(real)
-                eps = torch.randn_like(std)
-                emb = eps * std + mu
-                rec, sigmas = self.decoder(emb)
+                eps = torch.randn(real.shape[0], self.embedding_dim, device=self._device)
+                real_combined = torch.cat((real, eps), -1)
+                mu, std, logvar, rec, sigmas = encoder_n_decoder(real_combined)
                 loss_1, loss_2 = _loss_function(
                     rec,
                     real,
@@ -186,8 +243,8 @@ class TVAE(BaseSynthesizer):
                 loss = loss_1 + loss_2
                 loss.backward()
                 optimizerAE.step()
-                self.decoder.sigma.data.clamp_(0.01, 1.0)
-
+                raw_module = getattr(encoder_n_decoder, "_module", encoder_n_decoder)
+                raw_module.sigma.data.clamp_(0.01, 1.0)
                 batch.append(id_)
                 loss_values.append(loss.detach().cpu().item())
 
