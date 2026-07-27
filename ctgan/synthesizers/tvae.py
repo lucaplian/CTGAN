@@ -208,7 +208,8 @@ class TVAE(BaseSynthesizer):
             iterator.set_description(iterator_description.format(loss=_format_score(0)))
 
         #DELTA = 1 / len(loader)
-        
+        if self.epsilon is math.inf or self.epsilon == math.info:
+            max_grad_norm = 100.0
         privacy_engine = PrivacyEngine()
         encoder_n_decoder, optimizerAE, loader = privacy_engine.make_private_with_epsilon(
             module=encoder_n_decoder,
@@ -244,7 +245,7 @@ class TVAE(BaseSynthesizer):
                 loss.backward()
                 optimizerAE.step()
                 raw_module = getattr(encoder_n_decoder, "_module", encoder_n_decoder)
-                raw_module.sigma.data.clamp_(0.01, 1.0)
+                raw_module.sigma.data.clamp_(0.0001, 1.0)
                 batch.append(id_)
                 loss_values.append(loss.detach().cpu().item())
 
