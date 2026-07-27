@@ -210,7 +210,7 @@ class TVAE(BaseSynthesizer):
         #DELTA = 1 / len(loader)
         if self.epsilon is math.inf or self.epsilon == math.info:
             max_grad_norm = 100.0
-        privacy_engine = PrivacyEngine()
+        '''privacy_engine = PrivacyEngine()
         encoder_n_decoder, optimizerAE, loader = privacy_engine.make_private_with_epsilon(
             module=encoder_n_decoder,
             optimizer=optimizerAE,
@@ -219,7 +219,7 @@ class TVAE(BaseSynthesizer):
             target_epsilon=self.epsilon,
             epochs=self.epochs,
             max_grad_norm=1.0,
-        )
+        )'''
 
 
         for i in iterator:
