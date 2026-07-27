@@ -245,7 +245,7 @@ class TVAE(BaseSynthesizer):
                 loss.backward()
                 optimizerAE.step()
                 raw_module = getattr(encoder_n_decoder, "_module", encoder_n_decoder)
-                raw_module.sigma.data.clamp_(0.0001, 1.0)
+                raw_module.sigma.data.clamp_(0.01, 1.0)
                 batch.append(id_)
                 loss_values.append(loss.detach().cpu().item())
 
