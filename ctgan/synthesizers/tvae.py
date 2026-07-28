@@ -51,8 +51,10 @@ class EncoderNDecoder(Module):
         logvar = self.fc2(feature)
         logvar = torch.clamp(logvar, min=-10, max=10)
         std = torch.exp(0.5 * logvar)
-        emb = eps * std + mu        
-        return mu, std, logvar, self.seq_decoder(emb), self.sigma
+        emb = eps * std + mu 
+        rec_raw = self.seq_decoder(emb)
+        rec = torch.clamp(rec_raw, min=-5.0, max=5.0)       
+        return mu, std, logvar, rec, self.sigma
 
 class Encoder(Module):
     """Encoder for the TVAE.
@@ -199,7 +201,7 @@ class TVAE(BaseSynthesizer):
         encoder = Encoder(data_dim, self.compress_dims, self.embedding_dim).to(self._device)
         self.decoder = Decoder(self.embedding_dim, self.decompress_dims, data_dim).to(self._device)
         optimizerAE = Adam(
-            list(self.encoder_n_decoder.parameters()), weight_decay=self.l2scale
+            list(self.encoder_n_decoder.parameters()),lr=1e-4, weight_decay=self.l2scale
         )
 
         self.loss_values = pd.DataFrame(columns=['Epoch', 'Batch', 'Loss'])
