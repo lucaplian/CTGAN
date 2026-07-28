@@ -202,7 +202,8 @@ class TVAE(BaseSynthesizer):
         encoder = Encoder(data_dim, self.compress_dims, self.embedding_dim).to(self._device)
         self.decoder = Decoder(self.embedding_dim, self.decompress_dims, data_dim).to(self._device)
         optimizerAE = Adam(
-            list(self.encoder_n_decoder.parameters()),weight_decay=self.l2scale
+            [p for p in self.encoder_n_decoder.parameters() if p.requires_grad],
+            weight_decay=self.l2scale
         )
 
         self.loss_values = pd.DataFrame(columns=['Epoch', 'Batch', 'Loss'])
