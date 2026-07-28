@@ -211,9 +211,10 @@ class TVAE(BaseSynthesizer):
             iterator.set_description(iterator_description.format(loss=_format_score(0)))
 
         #DELTA = 1 / len(loader)
+        max_grad_norm = 10.0
         '''if self.epsilon is math.inf or self.epsilon == math.info:
             max_grad_norm = 100.0
-        
+        '''
         privacy_engine = PrivacyEngine()
         self.encoder_n_decoder, optimizerAE, loader = privacy_engine.make_private_with_epsilon(
             module=self.encoder_n_decoder,
@@ -222,8 +223,9 @@ class TVAE(BaseSynthesizer):
             target_delta=self.delta,
             target_epsilon=self.epsilon,
             epochs=self.epochs,
+            loss_reduction = "mean",
             max_grad_norm=max_grad_norm,
-        )'''
+        )
 
 
         for i in iterator:
@@ -305,7 +307,7 @@ class TVAE(BaseSynthesizer):
             data_before.append(fake.detach().cpu().numpy())
             fake = torch.tanh(fake)
             data.append(fake.detach().cpu().numpy())
-        print("sigmas=", sigmas)
+        print("sigmas=",  )
         print("data_beforee=", data_before[-1])
         print("data=", data[-1])
         data = np.concatenate(data, axis=0)
