@@ -307,7 +307,7 @@ class TVAE(BaseSynthesizer):
             data_before.append(fake.detach().cpu().numpy())
             fake = torch.tanh(fake)
             data.append(fake.detach().cpu().numpy())
-        print("sigmas=",  )
+        print("sigmas=",  sigmas)
         print("data_beforee=", data_before[-1])
         print("data=", data[-1])
         data = np.concatenate(data, axis=0)
