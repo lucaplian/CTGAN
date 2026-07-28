@@ -150,7 +150,7 @@ class TVAE(BaseSynthesizer):
         embedding_dim=128,
         compress_dims=(128, 128),
         decompress_dims=(128, 128),
-        l2scale=1e-5,
+        l2scale=1e-2,
         batch_size=500,
         epochs=300,
         loss_factor=2,
