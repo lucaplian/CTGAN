@@ -49,7 +49,7 @@ class EncoderNDecoder(Module):
         feature = self.seq_encoder(input_)
         mu = self.fc1(feature)
         logvar = self.fc2(feature)
-        
+        logvar = torch.clamp(logvar, min=-10, max=10)
         std = torch.exp(0.5 * logvar)
         emb = eps * std + mu        
         return mu, std, logvar, self.seq_decoder(emb), self.sigma
@@ -124,8 +124,8 @@ def _loss_function(recon_x, x, sigmas, mu, logvar, output_info, factor):
                 ed = st + span_info.dim
                 std = sigmas[st]
                 eq = x[:, st] - torch.tanh(recon_x[:, st])
-                loss.append((eq**2 / 2 / (std**2)).sum())
-                loss.append(torch.log(std) * x.size()[0])
+                loss.append((eq**2 / 2 / (std**2+1e-6)).sum())
+                loss.append(torch.log(std+1e-6) * x.size()[0])
                 st = ed
 
             else:
@@ -232,7 +232,9 @@ class TVAE(BaseSynthesizer):
                
                 real = data[0].to(self._device)
                 eps = torch.randn(real.shape[0], self.embedding_dim, device=self._device)
+                
                 real_combined = torch.cat((real, eps), -1)
+                
                 mu, std, logvar, rec, sigmas = self.encoder_n_decoder(real_combined)
                 loss_1, loss_2 = _loss_function(
                     rec,
@@ -250,6 +252,9 @@ class TVAE(BaseSynthesizer):
                 raw_module.sigma.data.clamp_(0.0001, 1.0)
                 batch.append(id_)
                 loss_values.append(loss.detach().cpu().item())
+            print("raw_module.seq_encoder(real)=",raw_module.seq_encoder(real))
+            print("real=", real)
+            print("eps=", eps)
             print("logvar=", logvar)
             print("logvar=", rec)
             print("sigmas=", sigmas)
