@@ -39,7 +39,8 @@ class EncoderNDecoder(Module):
 
         seq_decoder.append(Linear(dim_decoder, data_dim))
         self.seq_decoder = Sequential(*seq_decoder)
-        self.sigma = Parameter(torch.ones(data_dim) * 0.1)
+        #self.sigma = Parameter(torch.ones(data_dim) * 0.1)
+        self.register_buffer("sigma", torch.ones(data_dim) * 0.1)
     
     def forward(self, combined_input):
         """Encode the passed `input_`."""
@@ -52,8 +53,8 @@ class EncoderNDecoder(Module):
         logvar = torch.clamp(logvar, min=-10, max=10)
         std = torch.exp(0.5 * logvar)
         emb = eps * std + mu 
-        #rec_raw = self.seq_decoder(emb)
-        #rec = torch.clamp(rec_raw, min=-5.0, max=5.0)       
+        rec_raw = self.seq_decoder(emb)
+        rec = torch.clamp(rec_raw, min=-5.0, max=5.0)       
         return mu, std, logvar, self.seq_decoder(emb), self.sigma
 
 class Encoder(Module):
@@ -211,7 +212,7 @@ class TVAE(BaseSynthesizer):
             iterator.set_description(iterator_description.format(loss=_format_score(0)))
 
         #DELTA = 1 / len(loader)
-        max_grad_norm = 10.0
+        max_grad_norm = 50.0
         '''if self.epsilon is math.inf or self.epsilon == math.info:
             max_grad_norm = 100.0
         '''
