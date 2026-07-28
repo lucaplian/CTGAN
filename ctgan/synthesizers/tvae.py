@@ -52,9 +52,9 @@ class EncoderNDecoder(Module):
         logvar = torch.clamp(logvar, min=-10, max=10)
         std = torch.exp(0.5 * logvar)
         emb = eps * std + mu 
-        rec_raw = self.seq_decoder(emb)
-        rec = torch.clamp(rec_raw, min=-5.0, max=5.0)       
-        return mu, std, logvar, rec, self.sigma
+        #rec_raw = self.seq_decoder(emb)
+        #rec = torch.clamp(rec_raw, min=-5.0, max=5.0)       
+        return mu, std, logvar, self.seq_decoder(emb), self.sigma
 
 class Encoder(Module):
     """Encoder for the TVAE.
@@ -126,8 +126,8 @@ def _loss_function(recon_x, x, sigmas, mu, logvar, output_info, factor):
                 ed = st + span_info.dim
                 std = sigmas[st]
                 eq = x[:, st] - torch.tanh(recon_x[:, st])
-                loss.append((eq**2 / 2 / (std**2+1e-6)).sum())
-                loss.append(torch.log(std+1e-6) * x.size()[0])
+                loss.append((eq**2 / 2 / (std**2+1e-9)).sum())
+                loss.append(torch.log(std+1e-9) * x.size()[0])
                 st = ed
 
             else:
@@ -152,7 +152,7 @@ class TVAE(BaseSynthesizer):
         embedding_dim=128,
         compress_dims=(128, 128),
         decompress_dims=(128, 128),
-        l2scale=1e-2,
+        l2scale=1e-5,
         batch_size=500,
         epochs=300,
         loss_factor=2,
@@ -201,7 +201,7 @@ class TVAE(BaseSynthesizer):
         encoder = Encoder(data_dim, self.compress_dims, self.embedding_dim).to(self._device)
         self.decoder = Decoder(self.embedding_dim, self.decompress_dims, data_dim).to(self._device)
         optimizerAE = Adam(
-            list(self.encoder_n_decoder.parameters()),lr=1e-4, weight_decay=self.l2scale
+            list(self.encoder_n_decoder.parameters()),weight_decay=self.l2scale
         )
 
         self.loss_values = pd.DataFrame(columns=['Epoch', 'Batch', 'Loss'])
@@ -211,7 +211,7 @@ class TVAE(BaseSynthesizer):
             iterator.set_description(iterator_description.format(loss=_format_score(0)))
 
         #DELTA = 1 / len(loader)
-        if self.epsilon is math.inf or self.epsilon == math.info:
+        '''if self.epsilon is math.inf or self.epsilon == math.info:
             max_grad_norm = 100.0
         
         privacy_engine = PrivacyEngine()
@@ -223,7 +223,7 @@ class TVAE(BaseSynthesizer):
             target_epsilon=self.epsilon,
             epochs=self.epochs,
             max_grad_norm=max_grad_norm,
-        )
+        )'''
 
 
         for i in iterator:
@@ -251,7 +251,7 @@ class TVAE(BaseSynthesizer):
                 loss.backward()
                 optimizerAE.step()
                 raw_module = getattr(self.encoder_n_decoder, "_module", self.encoder_n_decoder)
-                raw_module.sigma.data.clamp_(0.0001, 1.0)
+                raw_module.sigma.data.clamp_(0.01, 1.0)
                 batch.append(id_)
                 loss_values.append(loss.detach().cpu().item())
             '''print("raw_module.seq_encoder(real)=",raw_module.seq_encoder(real))
