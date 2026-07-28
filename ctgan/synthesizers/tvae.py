@@ -49,6 +49,7 @@ class EncoderNDecoder(Module):
         feature = self.seq_encoder(input_)
         mu = self.fc1(feature)
         logvar = self.fc2(feature)
+        print("logvar=", logvar)
         std = torch.exp(0.5 * logvar)
         emb = eps * std + mu        
         return mu, std, logvar, self.seq_decoder(emb), self.sigma
@@ -289,7 +290,10 @@ class TVAE(BaseSynthesizer):
             noise = torch.normal(mean=mean, std=std).to(self._device)
             
             fake, sigmas = raw_module.seq_decoder(noise), raw_module.sigma
+            print("fake_1=", fake)
+            print("sigmas=", sigmas)
             fake = torch.tanh(fake)
+            print("fake_2=", fake)
             data.append(fake.detach().cpu().numpy())
 
         data = np.concatenate(data, axis=0)
