@@ -252,12 +252,12 @@ class TVAE(BaseSynthesizer):
                 raw_module.sigma.data.clamp_(0.0001, 1.0)
                 batch.append(id_)
                 loss_values.append(loss.detach().cpu().item())
-            print("raw_module.seq_encoder(real)=",raw_module.seq_encoder(real))
+            '''print("raw_module.seq_encoder(real)=",raw_module.seq_encoder(real))
             print("real=", real)
             print("eps=", eps)
             print("logvar=", logvar)
             print("logvar=", rec)
-            print("sigmas=", sigmas)
+            print("sigmas=", sigmas)'''
             epoch_loss_df = pd.DataFrame({
                 'Epoch': [i] * len(batch),
                 'Batch': batch,
