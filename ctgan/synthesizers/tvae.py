@@ -49,7 +49,7 @@ class EncoderNDecoder(Module):
         feature = self.seq_encoder(input_)
         mu = self.fc1(feature)
         logvar = self.fc2(feature)
-        print("logvar=", logvar)
+        
         std = torch.exp(0.5 * logvar)
         emb = eps * std + mu        
         return mu, std, logvar, self.seq_decoder(emb), self.sigma
@@ -250,7 +250,9 @@ class TVAE(BaseSynthesizer):
                 raw_module.sigma.data.clamp_(0.0001, 1.0)
                 batch.append(id_)
                 loss_values.append(loss.detach().cpu().item())
-
+            print("logvar=", logvar)
+            print("logvar=", rec)
+            print("sigmas=", sigmas)
             epoch_loss_df = pd.DataFrame({
                 'Epoch': [i] * len(batch),
                 'Batch': batch,
@@ -284,18 +286,21 @@ class TVAE(BaseSynthesizer):
 
         steps = samples // self.batch_size + 1
         data = []
+        data_before = []
         for _ in range(steps):
             mean = torch.zeros(self.batch_size, self.embedding_dim)
             std = mean + 1
             noise = torch.normal(mean=mean, std=std).to(self._device)
             
             fake, sigmas = raw_module.seq_decoder(noise), raw_module.sigma
-            print("fake_1=", fake)
-            print("sigmas=", sigmas)
-            fake = torch.tanh(fake)
-            print("fake_2=", fake)
-            data.append(fake.detach().cpu().numpy())
 
+            data.append(fake.detach().cpu().numpy())
+            data_before.append(fake.detach().cpu().numpy())
+            fake = torch.tanh(fake)
+            data.append(fake.detach().cpu().numpy())
+        print("sigmas=", sigmas)
+        print("data_beforee=", data_before[-1])
+        print("data=", data[-1])
         data = np.concatenate(data, axis=0)
         data = data[:samples]
         return self.transformer.inverse_transform(data, sigmas.detach().cpu().numpy())
