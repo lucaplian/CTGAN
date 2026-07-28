@@ -208,7 +208,7 @@ class TVAE(BaseSynthesizer):
             iterator.set_description(iterator_description.format(loss=_format_score(0)))
 
         #DELTA = 1 / len(loader)
-        if self.epsilon is math.inf or self.epsilon == math.info:
+        '''if self.epsilon is math.inf or self.epsilon == math.info:
             max_grad_norm = 100.0
         
         privacy_engine = PrivacyEngine()
@@ -220,7 +220,7 @@ class TVAE(BaseSynthesizer):
             target_epsilon=self.epsilon,
             epochs=self.epochs,
             max_grad_norm=max_grad_norm,
-        )
+        )'''
 
 
         for i in iterator:
