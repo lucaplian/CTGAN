@@ -39,8 +39,7 @@ class EncoderNDecoder(Module):
 
         seq_decoder.append(Linear(dim_decoder, data_dim))
         self.seq_decoder = Sequential(*seq_decoder)
-        #self.sigma = Parameter(torch.ones(data_dim) * 0.1)
-        self.register_buffer("sigma", torch.ones(data_dim) * 0.1)
+        self.sigma = Parameter(torch.ones(data_dim) * 0.1)
     
     def forward(self, combined_input):
         """Encode the passed `input_`."""
@@ -202,8 +201,7 @@ class TVAE(BaseSynthesizer):
         encoder = Encoder(data_dim, self.compress_dims, self.embedding_dim).to(self._device)
         self.decoder = Decoder(self.embedding_dim, self.decompress_dims, data_dim).to(self._device)
         optimizerAE = Adam(
-            [p for p in self.encoder_n_decoder.parameters() if p.requires_grad],
-            weight_decay=self.l2scale
+            list(self.encoder_n_decoder.parameters()),weight_decay=self.l2scale
         )
 
         self.loss_values = pd.DataFrame(columns=['Epoch', 'Batch', 'Loss'])
@@ -253,6 +251,8 @@ class TVAE(BaseSynthesizer):
                 )
                 loss = loss_1 + loss_2
                 loss.backward()
+                if self.encoder_n_decoder.sigma.grad is not None:
+                    self.encoder_n_decoder.sigma.grad *= 0
                 optimizerAE.step()
                 raw_module = getattr(self.encoder_n_decoder, "_module", self.encoder_n_decoder)
                 raw_module.sigma.data.clamp_(0.01, 1.0)
