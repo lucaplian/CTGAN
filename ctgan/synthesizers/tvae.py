@@ -54,7 +54,7 @@ class EncoderNDecoder(Module):
         emb = eps * std + mu 
         rec_raw = self.seq_decoder(emb)
         rec = torch.clamp(rec_raw, min=-5.0, max=5.0)       
-        return mu, std, logvar, self.seq_decoder(emb), self.sigma
+        return mu, std, logvar, rec, self.sigma
 
 class Encoder(Module):
     """Encoder for the TVAE.
