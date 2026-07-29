@@ -243,7 +243,7 @@ class TVAE(BaseSynthesizer):
                 loss_1, loss_2 = _loss_function(
                     rec,
                     real,
-                    sigmas,
+                    torch.ones(real.shape[0]) * 0.1,
                     mu,
                     logvar,
                     self.transformer.output_info_list,
