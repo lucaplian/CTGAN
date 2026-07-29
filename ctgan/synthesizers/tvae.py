@@ -252,8 +252,8 @@ class TVAE(BaseSynthesizer):
                 loss = loss_1 + loss_2
                 loss.backward()
                 raw_module = getattr(self.encoder_n_decoder, "_module", self.encoder_n_decoder)
-                if raw_module.encoder_n_decoder.sigma.grad is not None:
-                    raw_module.encoder_n_decoder.sigma.grad *= 0
+                if raw_module.sigma.grad is not None:
+                    raw_module.sigma.grad *= 0
                 optimizerAE.step()
                 raw_module.sigma.data.clamp_(0.01, 1.0)
                 batch.append(id_)
